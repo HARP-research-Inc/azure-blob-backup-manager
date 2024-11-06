@@ -1,0 +1,25 @@
+[project]
+name = "azure-blob-backup-manager"
+version = "0.1.0"
+description = "A small utility to smartly manage backups in an Azure Blob container"
+dependencies = ["azure-storage-blob==12.23.1"]
+requires-python = ">=3.10"
+
+[[project.authors]]
+name = "HARP Research"
+email = "dev@harpresearch.ai"
+
+[project.optional-dependencies]
+lint = ["ruff==0.6.9"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.format]
+quote-style = "double"
+docstring-code-format = true
+
+[tool.ruff.lint.isort]
+case-sensitive = false
+combine-as-imports = true
