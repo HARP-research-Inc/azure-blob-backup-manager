@@ -1,0 +1,53 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "description": "Configuration for azure-blob-backup-manager",
+  "additionalProperties": false,
+  "properties": {
+    "fileregex": {
+      "type": "string",
+      "description": "The regex to use to match the datetime from the file name",
+      "minLength": 1
+    },
+    "schedule": {
+      "type": "array",
+      "description": "The schedule for how long to keep backups",
+      "items": {
+        "type": "object",
+        "description": "A schedule entry",
+        "properties": {
+          "until": {
+            "type": "integer",
+            "description": "The time until which from now to qualify the rule. Leave blank to keep forever. Supports a number of days.",
+            "minimum": 1
+          },
+          "keep": {
+            "type": "string",
+            "description": "What the keep frequency should be.",
+            "enum": ["hourly", "daily", "weekly", "monthly", "yearly"]
+          },
+          "tier": {
+            "type": "string",
+            "description": "The tier to use for the blob storage (will only ever promote downwards, defaults to 'Hot')",
+            "enum": ["Hot", "Cool", "Cold", "Archive"]
+          }
+        },
+        "required": ["keep"]
+      }
+    },
+    "timezone": {
+      "type": "string",
+      "description": "The timezone to use for scheduling (defaults to UTC)"
+    },
+    "$schema": {
+      "type": "string",
+      "description": "The schema to use for validation (defaults to this schema)"
+    },
+    "containerName": {
+      "type": "string",
+      "description": "The name of the container to look at",
+      "minLength": 1
+    }
+  },
+  "required": ["fileregex", "schedule", "containerName"]
+}

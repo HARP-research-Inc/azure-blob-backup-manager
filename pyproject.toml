@@ -2,7 +2,11 @@
 name = "azure-blob-backup-manager"
 version = "0.1.0"
 description = "A small utility to smartly manage backups in an Azure Blob container"
-dependencies = ["azure-storage-blob==12.23.1"]
+dependencies = [
+    "azure-storage-blob==12.23.1",
+    "harp-logfmt-python @ git+https://github.com/HARP-research-Inc/logfmt-python.git@1.2.0",
+    "pydantic==2.9.2",
+]
 requires-python = ">=3.10"
 
 [[project.authors]]
@@ -11,6 +15,7 @@ email = "dev@harpresearch.ai"
 
 [project.optional-dependencies]
 lint = ["ruff==0.6.9"]
+test = ["pytest==8.3.3"]
 
 [tool.ruff]
 line-length = 120
