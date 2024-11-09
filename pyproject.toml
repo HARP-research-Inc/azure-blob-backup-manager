@@ -1,6 +1,6 @@
 [project]
 name = "azure-blob-backup-manager"
-version = "1.0.1"
+version = "1.0.2"
 description = "A small utility to smartly manage backups in an Azure Blob container"
 dependencies = [
     "azure-storage-blob==12.23.1",
