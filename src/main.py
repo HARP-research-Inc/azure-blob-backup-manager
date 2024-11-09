@@ -51,11 +51,23 @@ def process_backup_files(
         # print(file.timestamp, last.timestamp, file.timestamp - last.timestamp, threshold_resolution[threshold])
         delta = file.timestamp - last.timestamp
         if delta >= threshold_resolution[threshold]:
-            logger.debug("Keeping blob %s because duration %s is greater than threshold %s", file.filename, delta, threshold_resolution[threshold], extra=dict(data=file))
+            logger.debug(
+                "Keeping blob %s because duration %s is greater than threshold %s",
+                file.filename,
+                delta,
+                threshold_resolution[threshold],
+                extra=dict(data=file),
+            )
             keep.append(file)
             last = file
         else:
-            logger.debug("Not keeping blob %s because duration %s is less than threshold %s", file.filename, delta, threshold_resolution[threshold], extra=dict(data=file))
+            logger.debug(
+                "Not keeping blob %s because duration %s is less than threshold %s",
+                file.filename,
+                delta,
+                threshold_resolution[threshold],
+                extra=dict(data=file),
+            )
     return keep
 
 
@@ -83,11 +95,12 @@ class Config(BaseModel):
     timezone: str | None = None
     containerName: str
 
+
 def remove_entries_from_list(source: list[T], to_remove: Iterable[T]) -> list[T]:
     """Removes entries from list source that are in to_remove while keeping the order of the source list."""
     to_remove_set = set(to_remove)
     return [x for x in source if x not in to_remove_set]
-    
+
 
 def process_all_backup_files(files: list[BackupFile], config: Config) -> Mapping[ScheduleConfig, list[BackupFile]]:
     sorted_files = sorted(files, key=lambda x: x.timestamp, reverse=True)
@@ -153,6 +166,7 @@ def calculate_delta(all_files: list[BackupFile], kept: Mapping[ScheduleConfig, l
         kept_set.update(files)
     return list(total_set - kept_set)
 
+
 def delete_files(files: list[BackupFile], container_client: ContainerClient, simulation: bool = False) -> int:
     for file in files:
         logger.debug("Deleting blob %s", file.filename, extra=dict(data=file))
@@ -160,11 +174,20 @@ def delete_files(files: list[BackupFile], container_client: ContainerClient, sim
         container_client.delete_blobs(*(file.filename for file in files))
     return len(files)
 
+
 def comp_tiers(tier1: StandardBlobTier, tier2: StandardBlobTier) -> int:
-    order = [StandardBlobTier.ARCHIVE, StandardBlobTier.COLD, StandardBlobTier.COOL, StandardBlobTier.HOT] # Order of tiers from cheapest to most expensive
+    order = [
+        StandardBlobTier.ARCHIVE,
+        StandardBlobTier.COLD,
+        StandardBlobTier.COOL,
+        StandardBlobTier.HOT,
+    ]  # Order of tiers from cheapest to most expensive
     return order.index(tier1) - order.index(tier2)
 
-def move_files(files: Mapping[ScheduleConfig, list[BackupFile]], container_client: ContainerClient, simulation: bool = False) -> Mapping[tuple[StandardBlobTier, StandardBlobTier], int]:
+
+def move_files(
+    files: Mapping[ScheduleConfig, list[BackupFile]], container_client: ContainerClient, simulation: bool = False
+) -> Mapping[tuple[StandardBlobTier, StandardBlobTier], int]:
     moves: list[dict[str, str]] = []
     move_counts: defaultdict[tuple[StandardBlobTier, StandardBlobTier], int] = defaultdict(int)
     for schedule, backup_files in files.items():
@@ -172,18 +195,32 @@ def move_files(files: Mapping[ScheduleConfig, list[BackupFile]], container_clien
         for file in backup_files:
             comparison = comp_tiers(file.storage_tier, schedule_tier)
             if comparison > 0:
-                logger.debug("Moving blob %s to tier %s", file.filename, schedule_tier.value, extra=dict(data=dict(file=file, tier=schedule_tier, target_tier=schedule_tier)))
+                logger.debug(
+                    "Moving blob %s to tier %s",
+                    file.filename,
+                    schedule_tier.value,
+                    extra=dict(data=dict(file=file, tier=schedule_tier, target_tier=schedule_tier)),
+                )
                 moves.append(dict(name=file.filename, tier=schedule_tier))
                 move_counts[(file.storage_tier, schedule_tier)] += 1
             elif comparison == 0:
-                logger.debug("Blob %s is already in tier %s", file.filename, schedule_tier.value, extra=dict(data=dict(file=file, tier=schedule_tier)))
+                logger.debug(
+                    "Blob %s is already in tier %s",
+                    file.filename,
+                    schedule_tier.value,
+                    extra=dict(data=dict(file=file, tier=schedule_tier)),
+                )
             else:
-                logger.debug("Blob %s is already in a higher tier than %s, not moving up", file.filename, schedule_tier.value, extra=dict(data=dict(file=file, tier=schedule_tier, target_tier=file.storage_tier)))
+                logger.debug(
+                    "Blob %s is already in a higher tier than %s, not moving up",
+                    file.filename,
+                    schedule_tier.value,
+                    extra=dict(data=dict(file=file, tier=schedule_tier, target_tier=file.storage_tier)),
+                )
     if not simulation and moves:
         container_client.set_standard_blob_tier_blobs(None, *moves)
     return move_counts
-    
-    
+
 
 def act(args: argparse.Namespace):
     config = load_config(args.config)
@@ -201,6 +238,7 @@ def act(args: argparse.Namespace):
     logger.info("Deleted %d blobs", deleted)
     for (source, target), count in moves.items():
         logger.info("Moved %d blobs from %s to %s", count, source, target)
+
 
 def setup_logger(log_level: str | None, colorize: Literal["auto", "always", "never"] = "auto"):
     if not log_level:
@@ -228,15 +266,25 @@ def setup_logger(log_level: str | None, colorize: Literal["auto", "always", "nev
     formatter.add_custom_formatter(StandardBlobTier, lambda value: value.value)
     handler.setFormatter(formatter)
     logger.addHandler(handler)
-    
-def get_value(namespace: argparse.Namespace, key: str, environment_variable: str | None = None, default: str | None = None, *, choices: list[str] | None = None) -> str | None:
+
+
+def get_value(
+    namespace: argparse.Namespace,
+    key: str,
+    environment_variable: str | None = None,
+    default: str | None = None,
+    *,
+    choices: list[str] | None = None,
+) -> str | None:
     if value := getattr(namespace, key):
         if choices and value not in choices:
             raise ValueError(f"Value for {key} is not in the list of choices: {choices}")
         return value
     if environment_variable and (value := os.environ.get(environment_variable)):
         if choices and value not in choices:
-            raise ValueError(f"Value for {key} from environment variable {environment_variable} is not in the list of choices: {choices}")
+            raise ValueError(
+                f"Value for {key} from environment variable {environment_variable} is not in the list of choices: {choices}"
+            )
         return value
     if default:
         if choices and default not in choices:
@@ -244,17 +292,37 @@ def get_value(namespace: argparse.Namespace, key: str, environment_variable: str
         return default
     return None
 
-def main(args: Sequence[str] | None=None):
+
+def main(args: Sequence[str] | None = None):
     parser = argparse.ArgumentParser(description="Process Azure backups")
     simulate_choices = ["T", "F"]
-    parser.add_argument("--simulate", help="Simulate the actions without actually doing them (can also use environment variable SIMULATE)", choices=simulate_choices)
-    parser.add_argument("--config", help="Path to the config file (can also use environment variable CONFIG_PATH, default: config.json)")
-    log_level_choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
-    parser.add_argument("--log-level", help="Log level (can use environment variable LOG_LEVEL, default: INFO)", choices=log_level_choices)
-    colorize_choices=["auto", "always", "never"]
-    parser.add_argument("--colorize", help="Colorize the log output (can use environment variable COLORIZE, default: auto)", choices=colorize_choices)
-    parser.add_argument("--storage-account-name", help="Azure storage account name (can also use environment variable AZURE_STORAGE_ACCOUNT)")
-    parser.add_argument("--storage-account-key", help="Azure storage account key (can also use environment variable AZURE_STORAGE_KEY)")
+    parser.add_argument(
+        "--simulate",
+        help="Simulate the actions without actually doing them (can also use environment variable SIMULATE)",
+        choices=simulate_choices,
+    )
+    parser.add_argument(
+        "--config", help="Path to the config file (can also use environment variable CONFIG_PATH, default: config.json)"
+    )
+    log_level_choices = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+    parser.add_argument(
+        "--log-level",
+        help="Log level (can use environment variable LOG_LEVEL, default: INFO)",
+        choices=log_level_choices,
+    )
+    colorize_choices = ["auto", "always", "never"]
+    parser.add_argument(
+        "--colorize",
+        help="Colorize the log output (can use environment variable COLORIZE, default: auto)",
+        choices=colorize_choices,
+    )
+    parser.add_argument(
+        "--storage-account-name",
+        help="Azure storage account name (can also use environment variable AZURE_STORAGE_ACCOUNT)",
+    )
+    parser.add_argument(
+        "--storage-account-key", help="Azure storage account key (can also use environment variable AZURE_STORAGE_KEY)"
+    )
     parsed_initial = parser.parse_args(args)
     parsed = argparse.Namespace(
         simulate=get_value(parsed_initial, "simulate", "SIMULATE", "F", choices=simulate_choices),
@@ -262,7 +330,7 @@ def main(args: Sequence[str] | None=None):
         log_level=get_value(parsed_initial, "log_level", "LOG_LEVEL", "INFO", choices=log_level_choices),
         colorize=get_value(parsed_initial, "colorize", "COLORIZE", "auto", choices=colorize_choices),
         storage_account_name=get_value(parsed_initial, "storage_account_name", "AZURE_STORAGE_ACCOUNT"),
-        storage_account_key=get_value(parsed_initial, "storage_account_key", "AZURE_STORAGE_KEY")
+        storage_account_key=get_value(parsed_initial, "storage_account_key", "AZURE_STORAGE_KEY"),
     )
     setup_logger(parsed.log_level, parsed.colorize)
     logger.debug("Args recieved:", extra=dict(data=parsed))

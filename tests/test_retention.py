@@ -2,6 +2,7 @@ from src.main import process_backup_files, BackupFile
 import datetime
 from azure.storage.blob import StandardBlobTier
 
+
 def test_hourly_retention_small():
     times = [
         datetime.datetime(2024, 10, 31, 15, 0, tzinfo=datetime.timezone.utc),
@@ -17,6 +18,7 @@ def test_hourly_retention_small():
     assert processed[0] == backup_files[0]
     assert processed[1] == backup_files[2]
     assert processed[2] == backup_files[4]
+
 
 def test_daily_retention_small():
     times = [
