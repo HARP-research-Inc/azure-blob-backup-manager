@@ -1,0 +1,132 @@
+name: Docker
+
+on:
+  push:
+    branches: ["dev"]
+    tags: ["*.*.*"]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - linux/amd64
+          - linux/arm64/v8
+          - linux/386
+          - linux/arm/v7
+          - linux/arm/v6
+          - linux/ppc64le
+          - linux/s390x
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Convert image name to lowercase
+        run: |
+          GITHUB_REPOSITORY="${{ github.repository }}"
+          echo "IMAGE_NAME=${GITHUB_REPOSITORY,,}" >> "${GITHUB_ENV}"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3 # v3.0.0
+
+      - name: "Log into registry ${{ env.REGISTRY }}"
+        uses: docker/login-action@v3 # v3.0.0
+        with:
+          registry: "${{ env.REGISTRY }}"
+          username: "${{ github.actor }}"
+          password: "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5 # v5.0.0
+        with:
+          images: "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v5 # v5.0.0
+        with:
+          context: .
+          labels: "${{ steps.meta.outputs.labels }}"
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: "${{ matrix.platform }}"
+          provenance: true
+          sbom: true
+          outputs: "type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true"
+
+      - name: Export digest
+        run: |
+          mkdir -p "/tmp/digests/"
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - name: "Get arch name (compatible with docker manifest)"
+        id: get_arch_name
+        run: |
+          SAFENAME="$(echo "${{ matrix.platform }}" | sed 's/\//_/g')"
+          echo "ARCH_NAME=${SAFENAME}" >> "${GITHUB_OUTPUT}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: "digests-plat-${{ steps.get_arch_name.outputs.ARCH_NAME }}"
+          path: "/tmp/digests/*"
+          if-no-files-found: error
+          retention-days: 1
+
+  merge:
+    runs-on: ubuntu-latest
+    needs:
+      - build
+    permissions:
+      packages: write
+    steps:
+      - name: Convert image name to lowercase
+        run: |
+          GITHUB_REPOSITORY="${{ github.repository }}"
+          echo "IMAGE_NAME=${GITHUB_REPOSITORY,,}" >> "${GITHUB_ENV}"
+
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          path: "/tmp/digests/"
+
+      - name: Move to one directory
+        run: |
+          mkdir -p /tmp/digests-all
+          mv /tmp/digests/*/* /tmp/digests-all
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+
+      - name: "Log into registry ${{ env.REGISTRY }}"
+        uses: docker/login-action@v3
+        with:
+          registry: "${{ env.REGISTRY }}"
+          username: "${{ github.actor }}"
+          password: "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: Create manifest list and push
+        working-directory: "/tmp/digests-all"
+        run: |
+          # shellcheck disable=SC2046
+          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") $(printf '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@sha256:%s ' *)
