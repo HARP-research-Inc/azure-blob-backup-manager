@@ -10,6 +10,10 @@ permissions:
   contents: write
   actions: write
 
+concurrency: 
+  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.ref }}
+
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -59,6 +63,8 @@ jobs:
         pip install '.'
     - name: Check and push
       if: ${{ github.event_name == 'push' }}
+      env:
+        GH_TOKEN: ${{ github.token }}
       run: |
         VERSION="$(pip show azure-blob-backup-manager | grep Version | awk '{print $2}')"
         if [ ! $(git tag -l "$VERSION") ];

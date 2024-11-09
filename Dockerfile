@@ -8,7 +8,7 @@ ARG DEBUG=0
 ENV DEBUG=${DEBUG}
 
 COPY ./pyproject.toml /app/
-RUN pip install --no-cache-dir -e . && pip uninstall -y azure-blob-backup-manager
+RUN apk add --no-cache git && pip install --no-cache-dir -e . && pip uninstall -y azure-blob-backup-manager && apk del git
 
 RUN apk add --no-cache tini
 # Tini is now available at /sbin/tini
