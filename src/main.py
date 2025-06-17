@@ -12,6 +12,7 @@ from azure.storage.blob import BlobServiceClient, StandardBlobTier, ContainerCli
 import logging
 from harp_logfmt import LogfmtFormatter
 from typing import TypeVar
+from itertools import batched
 
 T = TypeVar("T")
 
@@ -168,10 +169,12 @@ def calculate_delta(all_files: list[BackupFile], kept: Mapping[ScheduleConfig, l
 
 
 def delete_files(files: list[BackupFile], container_client: ContainerClient, simulation: bool = False) -> int:
-    for file in files:
-        logger.debug("Deleting blob %s", file.filename, extra=dict(data=file))
-    if not simulation:
-        container_client.delete_blobs(*(file.filename for file in files))
+    batches = batched(files, 256)
+    for batch in batches:
+        for file in batch:
+            logger.debug("Deleting blob %s", file.filename, extra=dict(data=file))
+        if not simulation:
+            container_client.delete_blobs(*(file.filename for file in batch))
     return len(files)
 
 
@@ -218,7 +221,9 @@ def move_files(
                     extra=dict(data=dict(file=file, tier=schedule_tier, target_tier=file.storage_tier)),
                 )
     if not simulation and moves:
-        container_client.set_standard_blob_tier_blobs(None, *moves)
+        batches = batched(moves, 256)
+        for batch in batches:
+            container_client.set_standard_blob_tier_blobs(None, *batch)
     return move_counts
 
 

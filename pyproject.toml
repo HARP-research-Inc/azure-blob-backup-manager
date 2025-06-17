@@ -1,6 +1,6 @@
 [project]
 name = "azure-blob-backup-manager"
-version = "1.0.2"
+version = "1.0.3"
 description = "A small utility to smartly manage backups in an Azure Blob container"
 dependencies = [
     "azure-storage-blob==12.23.1",
@@ -16,6 +16,7 @@ email = "dev@harpresearch.ai"
 [project.optional-dependencies]
 lint = ["ruff==0.6.9"]
 test = ["pytest==8.3.3"]
+dev = ["azure-blob-backup-manager[lint,test]"]
 
 [tool.ruff]
 line-length = 120
