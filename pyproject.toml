@@ -7,7 +7,7 @@ dependencies = [
     "harp-logfmt-python @ git+https://github.com/HARP-research-Inc/logfmt-python.git@1.2.0",
     "pydantic==2.9.2",
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.13"
 
 [[project.authors]]
 name = "HARP Research"
@@ -20,7 +20,7 @@ dev = ["azure-blob-backup-manager[lint,test]"]
 
 [tool.ruff]
 line-length = 120
-target-version = "py310"
+target-version = "py313"
 
 [tool.ruff.format]
 quote-style = "double"
