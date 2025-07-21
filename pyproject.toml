@@ -15,7 +15,7 @@ email = "dev@harpresearch.ai"
 
 [project.optional-dependencies]
 lint = ["ruff==0.12.0"]
-test = ["pytest==8.4.0"]
+test = ["pytest==8.4.1"]
 dev = ["azure-blob-backup-manager[lint,test]"]
 
 [tool.ruff]
