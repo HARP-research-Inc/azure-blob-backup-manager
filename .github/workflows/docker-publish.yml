@@ -72,7 +72,7 @@ jobs:
           echo "ARCH_NAME=${SAFENAME}" >> "${GITHUB_OUTPUT}"
 
       - name: Upload digest
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: "digests-plat-${{ steps.get_arch_name.outputs.ARCH_NAME }}"
           path: "/tmp/digests/*"
